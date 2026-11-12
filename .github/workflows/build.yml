@@ -1,4 +1,4 @@
-name: Build APK
+name: Build Kotlin APK
 
 on:
   push:
@@ -16,21 +16,23 @@ jobs:
       - name: Extract Zip File
         run: |
           set -e
-          # 🌟 نام فایل زیپ جدید شما
           ZIP_FILE="CoolerController.zip"
-          
           if [ ! -f "$ZIP_FILE" ]; then 
             echo "فایل پیدا نشد: $ZIP_FILE"; ls -la; exit 1
           fi
-          
           echo "✅ در حال باز کردن فایل: $ZIP_FILE"
           mkdir -p extracted
           unzip -q -o "$ZIP_FILE" -d extracted
           
-          # پیدا کردن مسیر پروژه (جایی که settings.gradle یا build.gradle وجود دارد)
-          PROJECT_DIR=$(find extracted -name "settings.gradle*" -o -name "build.gradle*" | head -n 1 | xargs dirname)
-          if [ -z "$PROJECT_DIR" ]; then echo "PROJECT_DIR پیدا نشد"; exit 1; fi
+          # پیدا کردن مسیر پروژه کاتلین (جایی که settings.gradle وجود دارد)
+          PROJECT_DIR=$(find extracted -name "settings.gradle*" | head -n 1 | xargs dirname)
+          if [ -z "$PROJECT_DIR" ]; then 
+            echo "پوشه پروژه کاتلین پیدا نشد"; 
+            find extracted -type f | head -20;
+            exit 1; 
+          fi
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          echo "پروژه در مسیر $PROJECT_DIR پیدا شد"
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -38,17 +40,18 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Ensure Gradle Wrapper
+      # 🌟 مرحله جادویی: ساخت فایل gradlew اگر وجود نداشته باشد
+      - name: Setup Gradle Wrapper
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           set -e
           if [ ! -f "gradlew" ]; then
             echo "gradlew وجود ندارد، در حال ساخت..."
-            gradle wrapper
+            gradle wrapper --gradle-version 8.0
           fi
           chmod +x gradlew
 
-      - name: Build release APK
+      - name: Build Release APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: ./gradlew assembleRelease
 
