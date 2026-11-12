@@ -38,12 +38,10 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # 🌟 اینجا نسخه Gradle را به 8.7 تغییر دادیم
       - name: Setup Gradle Wrapper
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           set -e
-          echo "در حال ساخت Gradle 8.7..."
           gradle wrapper --gradle-version 8.7
           chmod +x gradlew
 
@@ -51,8 +49,24 @@ jobs:
         working-directory: ${{ env.PROJECT_DIR }}
         run: ./gradlew assembleRelease
 
+      # 🌟 مرحله جادویی: پیدا کردن فایل APK در هر مسیری که باشد
+      - name: Find and Upload APK
+        run: |
+          set -e
+          echo "در حال جستجوی فایل APK..."
+          # پیدا کردن همه فایل‌های apk در پوشه build
+          find extracted -name "*.apk" -type f
+          
+          # آپلود همه فایل‌های apk پیدا شده
+          APK_PATH=$(find extracted -name "*.apk" -type f | head -n 1)
+          if [ -z "$APK_PATH" ]; then
+            echo "هیچ فایل APK پیدا نشد!"
+            exit 1
+          fi
+          echo "APK_PATH=$APK_PATH" >> "$GITHUB_ENV"
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: CoolerController-APK
-          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/release/app-release.apk
+          path: ${{ env.APK_PATH }}
