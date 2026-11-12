@@ -18,7 +18,7 @@ jobs:
           set -e
           ZIP_FILE="CoolerController.zip"
           if [ ! -f "$ZIP_FILE" ]; then 
-            echo "فایل پیدا نشد: $ZIP_FILE"; ls -la; exit 1
+            echo "فایل پیدا نشد: $ZIP_FILE"; exit 1
           fi
           mkdir -p extracted
           unzip -q -o "$ZIP_FILE" -d extracted
@@ -39,64 +39,33 @@ jobs:
           gradle wrapper --gradle-version 8.7
           chmod +x gradlew
 
-      # 🌟 مرحله جدید: ساخت امضای دیجیتال
-      - name: Generate Keystore
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: |
-          keytool -genkeypair -v \
-            -keystore mykey.keystore \
-            -alias myalias \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -storepass mypassword -keypass mypassword \
-            -dname "CN=Your Name, OU=Your Org, O=Your Company, L=City, S=State, C=IR"
-
-      # 🌟 پیکربندی Gradle برای استفاده از این امضا
-      - name: Configure Signing in Gradle
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: |
-          set -e
-          # اضافه کردن تنظیمات امضا به فایل build.gradle (یا build.gradle.kts)
-          if [ -f "app/build.gradle" ]; then
-            sed -i '/android {/a \
-                signingConfigs { \
-                    release { \
-                        storeFile file("../../mykey.keystore") \
-                        storePassword "mypassword" \
-                        keyAlias "myalias" \
-                        keyPassword "mypassword" \
-                    } \
-                }' app/build.gradle
-            sed -i '/buildTypes {/,/}/ s/release {/release { signingConfig signingConfigs.release /' app/build.gradle
-          elif [ -f "app/build.gradle.kts" ]; then
-            # برای build.gradle.kts (مخصوص کاتلین)
-            sed -i '/android {/a \
-                signingConfigs { \
-                    create("release") { \
-                        storeFile = file("../../mykey.keystore") \
-                        storePassword = "mypassword" \
-                        keyAlias = "myalias" \
-                        keyPassword = "mypassword" \
-                    } \
-                }' app/build.gradle.kts
-            sed -i '/buildTypes {/,/}/ s/release {/release { signingConfig = signingConfigs.getByName("release") /' app/build.gradle.kts
-          fi
-
-      - name: Build Signed Release APK
+      # ساخت APK بدون امضا (همانطور که قبلا بود)
+      - name: Build Unsigned APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: ./gradlew assembleRelease
 
-      # 🌟 پیدا کردن و آپلود فایل APK نهایی
-      - name: Find and Upload APK
+      # 🌟 پیدا کردن فایل APK و امضای آن با ابزار apksigner
+      - name: Sign the APK
+        working-directory: ${{ env.PROJECT_DIR }}
         run: |
           set -e
-          APK_PATH=$(find extracted -name "*.apk" -type f | head -n 1)
-          if [ -z "$APK_PATH" ]; then
-            echo "هیچ فایل APK پیدا نشد!"
-            exit 1
-          fi
+          # پیدا کردن فایل APK
+          APK_PATH=$(find . -name "*.apk" -type f | head -n 1)
+          if [ -z "$APK_PATH" ]; then echo "APK پیدا نشد"; exit 1; fi
           echo "APK_PATH=$APK_PATH" >> "$GITHUB_ENV"
+          
+          # پیدا کردن ابزار apksigner از Android SDK
+          APKSIGNER=$(find $ANDROID_HOME/build-tools -name "apksigner" -type f | head -n 1)
+          if [ -z "$APKSIGNER" ]; then echo "apksigner پیدا نشد"; exit 1; fi
+          
+          # ساخت کلید امضا
+          keytool -genkeypair -v -keystore mykey.keystore -alias myalias -keyalg RSA -keysize 2048 -validity 10000 -storepass mypassword -keypass mypassword -dname "CN=CoolerApp, OU=Dev, O=Dev, L=Tehran, S=Tehran, C=IR"
+          
+          # امضای فایل APK
+          $APKSIGNER sign --ks mykey.keystore --ks-pass pass:mypassword --key-pass pass:mypassword --ks-key-alias myalias "$APK_PATH"
+          echo "✅ APK با موفقیت امضا شد."
 
-      - name: Upload APK
+      - name: Upload Signed APK
         uses: actions/upload-artifact@v4
         with:
           name: CoolerController-Signed-APK
