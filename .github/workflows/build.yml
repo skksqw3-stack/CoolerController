@@ -87,9 +87,17 @@ jobs:
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           set -e
-          APK_PATH=$(find . -name "*.apk" -type f | head -n 1)
-          if [ -z "$APK_PATH" ]; then echo "APK پیدا نشد"; exit 1; fi
+          # پیدا کردن فایل APK تولید شده توسط Gradle
+          APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" -type f | head -n 1)
           
+          if [ -z "$APK_PATH" ]; then 
+            echo "❌ فایل APK برای امضا پیدا نشد"; 
+            exit 1; 
+          fi
+          
+          echo "🔍 فایل APK پیدا شد در: $APK_PATH"
+          
+          # ساخت کی‌استور موقت
           keytool -genkeypair -v \
             -keystore mykey.keystore \
             -alias myalias \
@@ -97,6 +105,7 @@ jobs:
             -storepass mypassword -keypass mypassword \
             -dname "CN=CoolerApp, OU=Dev, O=Dev, L=Tehran, S=Tehran, C=IR"
           
+          # امضای فایل APK
           ${{ env.APKSIGNER_PATH }} sign \
             --ks mykey.keystore \
             --ks-pass pass:mypassword \
@@ -104,10 +113,23 @@ jobs:
             --ks-key-alias myalias \
             "$APK_PATH"
           
+          # تغییر نام فایل به app-release-signed.apk در همان پوشه خروجی
           NEW_APK_PATH=$(dirname "$APK_PATH")/app-release-signed.apk
           mv "$APK_PATH" "$NEW_APK_PATH"
-          echo "SIGNED_APK_PATH=$NEW_APK_PATH" >> "$GITHUB_ENV"
+          
+          # ذخیره مسیر کامل و مطلق در متغیر محیطی برای مرحله بعد
+          echo "SIGNED_APK_PATH=$(pwd)/$NEW_APK_PATH" >> "$GITHUB_ENV"
           echo "✅ فایل APK با موفقیت امضا شد: $NEW_APK_PATH"
+
+      - name: Verify Signed APK Exists
+        run: |
+          if [ -f "${{ env.SIGNED_APK_PATH }}" ]; then
+            echo "✅ فایل APK امضا شده پیدا شد: ${{ env.SIGNED_APK_PATH }}"
+            ls -lh "${{ env.SIGNED_APK_PATH }}"
+          else
+            echo "❌ فایل APK امضا شده پیدا نشد!"
+            exit 1
+          fi
 
       - name: Upload Signed APK
         uses: actions/upload-artifact@v4
