@@ -1,8 +1,8 @@
-name: Build Kotlin APK
+name: Build APK
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main, master]
   workflow_dispatch:
 
 jobs:
@@ -10,47 +10,45 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Extract ZIP file
+      - name: Extract Zip File
         run: |
           set -e
+          # 🌟 نام فایل زیپ جدید شما
           ZIP_FILE="CoolerController.zip"
-          if [ ! -f "$ZIP_FILE" ]; then
-            echo "File not found: $ZIP_FILE"
-            exit 1
+          
+          if [ ! -f "$ZIP_FILE" ]; then 
+            echo "فایل پیدا نشد: $ZIP_FILE"; ls -la; exit 1
           fi
-          echo "Extracting $ZIP_FILE..."
+          
+          echo "✅ در حال باز کردن فایل: $ZIP_FILE"
+          mkdir -p extracted
           unzip -q -o "$ZIP_FILE" -d extracted
           
+          # پیدا کردن مسیر پروژه (جایی که settings.gradle یا build.gradle وجود دارد)
           PROJECT_DIR=$(find extracted -name "settings.gradle*" -o -name "build.gradle*" | head -n 1 | xargs dirname)
-          if [ -z "$PROJECT_DIR" ]; then
-            echo "Project directory not found!"
-            exit 1
-          fi
-          echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
-          echo "Project found at: $PROJECT_DIR"
+          if [ -z "$PROJECT_DIR" ]; then echo "PROJECT_DIR پیدا نشد"; exit 1; fi
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-      - name: Set up JDK 17
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
+          distribution: temurin
           java-version: '17'
 
-      # این مرحله اگر gradlew نبود، خودش می‌سازد
-      - name: Ensure Gradle Wrapper exists
+      - name: Ensure Gradle Wrapper
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
+          set -e
           if [ ! -f "gradlew" ]; then
-            echo "gradlew not found, generating wrapper..."
+            echo "gradlew وجود ندارد، در حال ساخت..."
             gradle wrapper
-          else
-            echo "gradlew already exists"
           fi
           chmod +x gradlew
 
-      - name: Build APK with Gradle
+      - name: Build release APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: ./gradlew assembleRelease
 
