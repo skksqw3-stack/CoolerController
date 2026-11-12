@@ -43,19 +43,26 @@ jobs:
         working-directory: ${{ env.PROJECT_DIR }}
         run: ./gradlew assembleRelease
 
-      - name: Sign APK with Google's apksigner
-        working-directory: ${{ env.PROJECT_DIR }}
+      # پیدا کردن ابزار apksigner
+      - name: Find apksigner
         run: |
-          set -e
-          APK_PATH=$(find . -name "*release*.apk" -type f | head -n 1)
-          if [ -z "$APK_PATH" ]; then echo "APK پیدا نشد"; exit 1; fi
-          
           APKSIGNER=$(find $ANDROID_HOME/build-tools -name "apksigner" -type f | head -n 1)
           if [ -z "$APKSIGNER" ]; then 
             yes | sdkmanager "build-tools;34.0.0" > /dev/null 2>&1
             APKSIGNER=$(find $ANDROID_HOME/build-tools -name "apksigner" -type f | head -n 1)
           fi
+          echo "APKSIGNER_PATH=$APKSIGNER" >> "$GITHUB_ENV"
+
+      # امضا کردن فایل APK
+      - name: Sign APK
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          set -e
+          # پیدا کردن فایل APK (با هر نامی)
+          APK_PATH=$(find . -name "*.apk" -type f | head -n 1)
+          if [ -z "$APK_PATH" ]; then echo "APK پیدا نشد"; exit 1; fi
           
+          # ساخت کلید
           keytool -genkeypair -v \
             -keystore mykey.keystore \
             -alias myalias \
@@ -63,16 +70,20 @@ jobs:
             -storepass mypassword -keypass mypassword \
             -dname "CN=CoolerApp, OU=Dev, O=Dev, L=Tehran, S=Tehran, C=IR"
           
-          $APKSIGNER sign \
+          # امضا
+          ${{ env.APKSIGNER_PATH }} sign \
             --ks mykey.keystore \
             --ks-pass pass:mypassword \
             --key-pass pass:mypassword \
             --ks-key-alias myalias \
             "$APK_PATH"
           
-          # ذخیره مسیر فایل امضا شده برای مرحله بعد
-          echo "SIGNED_APK_PATH=$APK_PATH" >> "$GITHUB_ENV"
-          echo "✅ فایل APK با موفقیت امضا شد: $APK_PATH"
+          # تغییر نام فایل به نام استاندارد
+          NEW_APK_PATH=$(dirname "$APK_PATH")/app-release-signed.apk
+          mv "$APK_PATH" "$NEW_APK_PATH"
+          
+          echo "SIGNED_APK_PATH=$NEW_APK_PATH" >> "$GITHUB_ENV"
+          echo "✅ فایل APK با موفقیت امضا شد: $NEW_APK_PATH"
 
       - name: Upload Signed APK
         uses: actions/upload-artifact@v4
