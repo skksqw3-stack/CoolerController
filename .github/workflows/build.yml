@@ -24,7 +24,6 @@ jobs:
           echo "Extracting $ZIP_FILE..."
           unzip -q -o "$ZIP_FILE" -d extracted
           
-          # پیدا کردن مسیر پروژه (جایی که فایل build.gradle یا settings.gradle وجود دارد)
           PROJECT_DIR=$(find extracted -name "settings.gradle*" -o -name "build.gradle*" | head -n 1 | xargs dirname)
           if [ -z "$PROJECT_DIR" ]; then
             echo "Project directory not found!"
@@ -39,9 +38,17 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Grant execute permission for gradlew
+      # این مرحله اگر gradlew نبود، خودش می‌سازد
+      - name: Ensure Gradle Wrapper exists
         working-directory: ${{ env.PROJECT_DIR }}
-        run: chmod +x gradlew
+        run: |
+          if [ ! -f "gradlew" ]; then
+            echo "gradlew not found, generating wrapper..."
+            gradle wrapper
+          else
+            echo "gradlew already exists"
+          fi
+          chmod +x gradlew
 
       - name: Build APK with Gradle
         working-directory: ${{ env.PROJECT_DIR }}
