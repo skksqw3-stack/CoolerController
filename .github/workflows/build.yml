@@ -24,7 +24,6 @@ jobs:
           mkdir -p extracted
           unzip -q -o "$ZIP_FILE" -d extracted
           
-          # پیدا کردن مسیر پروژه کاتلین (جایی که settings.gradle وجود دارد)
           PROJECT_DIR=$(find extracted -name "settings.gradle*" | head -n 1 | xargs dirname)
           if [ -z "$PROJECT_DIR" ]; then 
             echo "پوشه پروژه کاتلین پیدا نشد"; 
@@ -32,7 +31,6 @@ jobs:
             exit 1; 
           fi
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
-          echo "پروژه در مسیر $PROJECT_DIR پیدا شد"
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -40,15 +38,13 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # 🌟 مرحله جادویی: ساخت فایل gradlew اگر وجود نداشته باشد
+      # 🌟 اینجا نسخه Gradle را به 8.7 تغییر دادیم
       - name: Setup Gradle Wrapper
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           set -e
-          if [ ! -f "gradlew" ]; then
-            echo "gradlew وجود ندارد، در حال ساخت..."
-            gradle wrapper --gradle-version 8.0
-          fi
+          echo "در حال ساخت Gradle 8.7..."
+          gradle wrapper --gradle-version 8.7
           chmod +x gradlew
 
       - name: Build Release APK
