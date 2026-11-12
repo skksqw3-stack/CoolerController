@@ -26,11 +26,42 @@ jobs:
           if [ -z "$PROJECT_DIR" ]; then echo "پروژه پیدا نشد"; exit 1; fi
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
+      # 🌟 کپی کردن آیکون از کنار فایل زیپ به پروژه
+      - name: Copy Icon to Project
+        run: |
+          set -e
+          ICON_FILE="icon.png"
+          if [ -f "$ICON_FILE" ]; then
+            echo "✅ آیکون پیدا شد: $ICON_FILE"
+            RES_DIR=$(find ${{ env.PROJECT_DIR }} -path "*/src/main/res" -type d | head -n 1)
+            if [ -z "$RES_DIR" ]; then 
+              echo "پوشه res پیدا نشد!"; exit 1
+            fi
+            for folder in $RES_DIR/mipmap-*; do
+              if [ -d "$folder" ]; then
+                cp "$ICON_FILE" "$folder/ic_launcher.png"
+              fi
+            done
+            echo "✅ آیکون در تمام پوشه‌های mipmap کپی شد."
+          else
+            echo "⚠️ آیکون پیدا نشد. از آیکون پیش‌فرض استفاده می‌شود."
+          fi
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
       - name: Setup Gradle Wrapper
         working-directory: ${{ env.PROJECT_DIR }}
@@ -43,7 +74,6 @@ jobs:
         working-directory: ${{ env.PROJECT_DIR }}
         run: ./gradlew assembleRelease
 
-      # پیدا کردن ابزار apksigner
       - name: Find apksigner
         run: |
           APKSIGNER=$(find $ANDROID_HOME/build-tools -name "apksigner" -type f | head -n 1)
@@ -53,16 +83,13 @@ jobs:
           fi
           echo "APKSIGNER_PATH=$APKSIGNER" >> "$GITHUB_ENV"
 
-      # امضا کردن فایل APK
       - name: Sign APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           set -e
-          # پیدا کردن فایل APK (با هر نامی)
           APK_PATH=$(find . -name "*.apk" -type f | head -n 1)
           if [ -z "$APK_PATH" ]; then echo "APK پیدا نشد"; exit 1; fi
           
-          # ساخت کلید
           keytool -genkeypair -v \
             -keystore mykey.keystore \
             -alias myalias \
@@ -70,7 +97,6 @@ jobs:
             -storepass mypassword -keypass mypassword \
             -dname "CN=CoolerApp, OU=Dev, O=Dev, L=Tehran, S=Tehran, C=IR"
           
-          # امضا
           ${{ env.APKSIGNER_PATH }} sign \
             --ks mykey.keystore \
             --ks-pass pass:mypassword \
@@ -78,10 +104,8 @@ jobs:
             --ks-key-alias myalias \
             "$APK_PATH"
           
-          # تغییر نام فایل به نام استاندارد
           NEW_APK_PATH=$(dirname "$APK_PATH")/app-release-signed.apk
           mv "$APK_PATH" "$NEW_APK_PATH"
-          
           echo "SIGNED_APK_PATH=$NEW_APK_PATH" >> "$GITHUB_ENV"
           echo "✅ فایل APK با موفقیت امضا شد: $NEW_APK_PATH"
 
