@@ -1,0 +1,54 @@
+name: Build Kotlin APK
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract ZIP file
+        run: |
+          set -e
+          ZIP_FILE="CoolerController.zip"
+          if [ ! -f "$ZIP_FILE" ]; then
+            echo "File not found: $ZIP_FILE"
+            exit 1
+          fi
+          echo "Extracting $ZIP_FILE..."
+          unzip -q -o "$ZIP_FILE" -d extracted
+          
+          # پیدا کردن مسیر پروژه (جایی که فایل build.gradle یا settings.gradle وجود دارد)
+          PROJECT_DIR=$(find extracted -name "settings.gradle*" -o -name "build.gradle*" | head -n 1 | xargs dirname)
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "Project directory not found!"
+            exit 1
+          fi
+          echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
+          echo "Project found at: $PROJECT_DIR"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Grant execute permission for gradlew
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: chmod +x gradlew
+
+      - name: Build APK with Gradle
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: ./gradlew assembleRelease
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: CoolerController-APK
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/release/app-release.apk
