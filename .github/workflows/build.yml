@@ -20,16 +20,10 @@ jobs:
           if [ ! -f "$ZIP_FILE" ]; then 
             echo "فایل پیدا نشد: $ZIP_FILE"; ls -la; exit 1
           fi
-          echo "✅ در حال باز کردن فایل: $ZIP_FILE"
           mkdir -p extracted
           unzip -q -o "$ZIP_FILE" -d extracted
-          
           PROJECT_DIR=$(find extracted -name "settings.gradle*" | head -n 1 | xargs dirname)
-          if [ -z "$PROJECT_DIR" ]; then 
-            echo "پوشه پروژه کاتلین پیدا نشد"; 
-            find extracted -type f | head -20;
-            exit 1; 
-          fi
+          if [ -z "$PROJECT_DIR" ]; then echo "پروژه پیدا نشد"; exit 1; fi
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
       - name: Setup Java
@@ -45,19 +39,56 @@ jobs:
           gradle wrapper --gradle-version 8.7
           chmod +x gradlew
 
-      - name: Build Release APK
+      # 🌟 مرحله جدید: ساخت امضای دیجیتال
+      - name: Generate Keystore
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          keytool -genkeypair -v \
+            -keystore mykey.keystore \
+            -alias myalias \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass mypassword -keypass mypassword \
+            -dname "CN=Your Name, OU=Your Org, O=Your Company, L=City, S=State, C=IR"
+
+      # 🌟 پیکربندی Gradle برای استفاده از این امضا
+      - name: Configure Signing in Gradle
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          set -e
+          # اضافه کردن تنظیمات امضا به فایل build.gradle (یا build.gradle.kts)
+          if [ -f "app/build.gradle" ]; then
+            sed -i '/android {/a \
+                signingConfigs { \
+                    release { \
+                        storeFile file("../../mykey.keystore") \
+                        storePassword "mypassword" \
+                        keyAlias "myalias" \
+                        keyPassword "mypassword" \
+                    } \
+                }' app/build.gradle
+            sed -i '/buildTypes {/,/}/ s/release {/release { signingConfig signingConfigs.release /' app/build.gradle
+          elif [ -f "app/build.gradle.kts" ]; then
+            # برای build.gradle.kts (مخصوص کاتلین)
+            sed -i '/android {/a \
+                signingConfigs { \
+                    create("release") { \
+                        storeFile = file("../../mykey.keystore") \
+                        storePassword = "mypassword" \
+                        keyAlias = "myalias" \
+                        keyPassword = "mypassword" \
+                    } \
+                }' app/build.gradle.kts
+            sed -i '/buildTypes {/,/}/ s/release {/release { signingConfig = signingConfigs.getByName("release") /' app/build.gradle.kts
+          fi
+
+      - name: Build Signed Release APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: ./gradlew assembleRelease
 
-      # 🌟 مرحله جادویی: پیدا کردن فایل APK در هر مسیری که باشد
+      # 🌟 پیدا کردن و آپلود فایل APK نهایی
       - name: Find and Upload APK
         run: |
           set -e
-          echo "در حال جستجوی فایل APK..."
-          # پیدا کردن همه فایل‌های apk در پوشه build
-          find extracted -name "*.apk" -type f
-          
-          # آپلود همه فایل‌های apk پیدا شده
           APK_PATH=$(find extracted -name "*.apk" -type f | head -n 1)
           if [ -z "$APK_PATH" ]; then
             echo "هیچ فایل APK پیدا نشد!"
@@ -68,5 +99,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: CoolerController-APK
+          name: CoolerController-Signed-APK
           path: ${{ env.APK_PATH }}
