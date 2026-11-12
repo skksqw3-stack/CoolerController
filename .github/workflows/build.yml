@@ -16,17 +16,27 @@ jobs:
       - name: Extract Zip File
         run: |
           set -e
-          ZIP_FILE="CoolerController.zip"
+          # ⬇️ نام فایل دقیقاً مطابق با فایل آپلود شده در گیت‌هاب تنظیم شد ⬇️
+          ZIP_FILE="CoolerController_Fixed (1).zip"
+          
           if [ ! -f "$ZIP_FILE" ]; then 
-            echo "فایل پیدا نشد: $ZIP_FILE"; exit 1
+            echo "❌ فایل پیدا نشد: $ZIP_FILE"
+            ls -la
+            exit 1
           fi
+          
           mkdir -p extracted
           unzip -q -o "$ZIP_FILE" -d extracted
+          
           PROJECT_DIR=$(find extracted -name "settings.gradle*" | head -n 1 | xargs dirname)
-          if [ -z "$PROJECT_DIR" ]; then echo "پروژه پیدا نشد"; exit 1; fi
+          if [ -z "$PROJECT_DIR" ]; then 
+            echo "❌ پوشه پروژه (settings.gradle) پیدا نشد"
+            exit 1
+          fi
+          
+          echo "✅ پروژه در مسیر $PROJECT_DIR پیدا شد"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-      # 🌟 کپی کردن آیکون از کنار فایل زیپ به پروژه
       - name: Copy Icon to Project
         run: |
           set -e
@@ -35,11 +45,16 @@ jobs:
             echo "✅ آیکون پیدا شد: $ICON_FILE"
             RES_DIR=$(find ${{ env.PROJECT_DIR }} -path "*/src/main/res" -type d | head -n 1)
             if [ -z "$RES_DIR" ]; then 
-              echo "پوشه res پیدا نشد!"; exit 1
+              echo "❌ پوشه res پیدا نشد!"; exit 1
             fi
+            
             for folder in $RES_DIR/mipmap-*; do
               if [ -d "$folder" ]; then
                 cp "$ICON_FILE" "$folder/ic_launcher.png"
+                # حذف فایل xml در صورت وجود، تا آیکون png جایگزین شود
+                if [ -f "$folder/ic_launcher.xml" ]; then
+                  rm "$folder/ic_launcher.xml"
+                fi
               fi
             done
             echo "✅ آیکون در تمام پوشه‌های mipmap کپی شد."
