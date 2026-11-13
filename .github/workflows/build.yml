@@ -1,4 +1,4 @@
-name: Build Kotlin APK (Android 4 Legacy)
+name: Build Kotlin APK (Android 4 Legacy Fixed)
 
 on:
   push:
@@ -16,7 +16,8 @@ jobs:
       - name: Extract Zip File
         run: |
           set -e
-          ZIP_FILE="CoolerController_Android_4_4_Legacy (1).zip"
+          # ⬇️ نام فایل زیپ جدید شما ⬇️
+          ZIP_FILE="CoolerController_API19_fixed.zip"
           
           if [ ! -f "$ZIP_FILE" ]; then 
             echo "❌ فایل پیدا نشد: $ZIP_FILE"
@@ -75,7 +76,6 @@ jobs:
         run: |
           set -e
           echo "🏗️ شروع بیلد پروژه (نادیده گرفتن Lint)..."
-          # 🌟 دستور -x lintVitalRelease باعث می‌شود خطای targetSdk بیلد را متوقف نکند 🌟
           ./gradlew assembleRelease -x lintVitalRelease
 
       - name: Find apksigner
@@ -133,5 +133,5 @@ jobs:
       - name: Upload Signed APK
         uses: actions/upload-artifact@v4
         with:
-          name: CoolerController-Android4-Legacy-APK
+          name: CoolerController-API19-Fixed-APK
           path: ${{ env.SIGNED_APK_PATH }}
