@@ -16,12 +16,10 @@ jobs:
       - name: Extract Zip File
         run: |
           set -e
-          # ⬇️ نام دقیق فایل زیپ جدید شما (به فاصله و پرانتز دقت کنید) ⬇️
           ZIP_FILE="CoolerController_Android_4_4_Legacy (1).zip"
           
           if [ ! -f "$ZIP_FILE" ]; then 
             echo "❌ فایل پیدا نشد: $ZIP_FILE"
-            echo "لیست فایل‌های موجود در پوشه:"
             ls -la
             exit 1
           fi
@@ -44,8 +42,8 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          # استفاده از جاوا 11 برای سازگاری با پروژه‌های قدیمی
-          java-version: '11' 
+          # ⬇️ بازگشت به جاوا 17 (اجباری برای گرِدل‌های جدید) ⬇️
+          java-version: '17' 
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -57,17 +55,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: Setup Gradle Wrapper
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: |
-          set -e
-          # استفاده از گرِدل نسخه 8.7
-          gradle wrapper --gradle-version 8.7
-          chmod +x gradlew
+      # 🌟 مرحله Setup Gradle Wrapper حذف شد تا از گرِدلِ خود پروژه استفاده شود 🌟
 
       - name: Build Unsigned APK
         working-directory: ${{ env.PROJECT_DIR }}
-        run: ./gradlew assembleRelease
+        run: |
+          set -e
+          chmod +x gradlew
+          ./gradlew assembleRelease
 
       - name: Find apksigner
         run: |
@@ -82,7 +77,6 @@ jobs:
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           set -e
-          # پیدا کردن فایل APK تولید شده
           APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" -type f | head -n 1)
           
           if [ -z "$APK_PATH" ]; then 
@@ -92,7 +86,6 @@ jobs:
           
           echo "🔍 فایل APK پیدا شد در: $APK_PATH"
           
-          # ساخت کی‌استور
           keytool -genkeypair -v \
             -keystore mykey.keystore \
             -alias myalias \
@@ -100,7 +93,6 @@ jobs:
             -storepass mypassword -keypass mypassword \
             -dname "CN=CoolerApp, OU=Dev, O=Dev, L=Tehran, S=Tehran, C=IR"
           
-          # امضای فایل
           ${{ env.APKSIGNER_PATH }} sign \
             --ks mykey.keystore \
             --ks-pass pass:mypassword \
