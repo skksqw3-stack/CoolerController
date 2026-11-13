@@ -16,11 +16,12 @@ jobs:
       - name: Extract Zip File
         run: |
           set -e
-          # ⬇️ نام فایل زیپ جدید شما ⬇️
-          ZIP_FILE="CoolerController_API19_fixed.zip"
+          # ⬇️ نام دقیق فایل زیپ جدید شما (به فاصله و پرانتز دقت کنید) ⬇️
+          ZIP_FILE="CoolerController_API19_fixed (1).zip"
           
           if [ ! -f "$ZIP_FILE" ]; then 
             echo "❌ فایل پیدا نشد: $ZIP_FILE"
+            echo "لیست فایل‌های موجود در پوشه:"
             ls -la
             exit 1
           fi
@@ -43,6 +44,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
+          # استفاده از جاوا 17 برای سازگاری با گرِدل 8.7
           java-version: '17' 
 
       - name: Cache Gradle
@@ -76,6 +78,7 @@ jobs:
         run: |
           set -e
           echo "🏗️ شروع بیلد پروژه (نادیده گرفتن Lint)..."
+          # دستور -x lintVitalRelease از خطای targetSdk جلوگیری می‌کند
           ./gradlew assembleRelease -x lintVitalRelease
 
       - name: Find apksigner
