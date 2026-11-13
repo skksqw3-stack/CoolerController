@@ -1,4 +1,4 @@
-name: Build Kotlin APK
+name: Build Kotlin APK (Android 4 Legacy)
 
 on:
   push:
@@ -16,12 +16,12 @@ jobs:
       - name: Extract Zip File
         run: |
           set -e
+          # ⬇️ نام دقیق فایل زیپ جدید شما (به فاصله و پرانتز دقت کنید) ⬇️
+          ZIP_FILE="CoolerController_Android_4_4_Legacy (1).zip"
           
-          # پیدا کردن اولین فایل زیپ در پوشه اصلی (به جای نوشتن نام دقیق)
-          ZIP_FILE=$(find . -maxdepth 1 -name "*.zip" -type f | head -n 1)
-          
-          if [ -z "$ZIP_FILE" ]; then 
-            echo "❌ هیچ فایل زیپی در روت پروژه پیدا نشد!"
+          if [ ! -f "$ZIP_FILE" ]; then 
+            echo "❌ فایل پیدا نشد: $ZIP_FILE"
+            echo "لیست فایل‌های موجود در پوشه:"
             ls -la
             exit 1
           fi
@@ -44,7 +44,8 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17' 
+          # استفاده از جاوا 11 برای سازگاری با پروژه‌های قدیمی
+          java-version: '11' 
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -60,6 +61,7 @@ jobs:
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           set -e
+          # استفاده از گرِدل نسخه 8.7
           gradle wrapper --gradle-version 8.7
           chmod +x gradlew
 
@@ -80,7 +82,7 @@ jobs:
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           set -e
-          # پیدا کردن فایل APK تولید شده توسط Gradle
+          # پیدا کردن فایل APK تولید شده
           APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" -type f | head -n 1)
           
           if [ -z "$APK_PATH" ]; then 
@@ -90,7 +92,7 @@ jobs:
           
           echo "🔍 فایل APK پیدا شد در: $APK_PATH"
           
-          # ساخت کی‌استور موقت
+          # ساخت کی‌استور
           keytool -genkeypair -v \
             -keystore mykey.keystore \
             -alias myalias \
@@ -98,7 +100,7 @@ jobs:
             -storepass mypassword -keypass mypassword \
             -dname "CN=CoolerApp, OU=Dev, O=Dev, L=Tehran, S=Tehran, C=IR"
           
-          # امضای فایل APK
+          # امضای فایل
           ${{ env.APKSIGNER_PATH }} sign \
             --ks mykey.keystore \
             --ks-pass pass:mypassword \
@@ -106,11 +108,9 @@ jobs:
             --ks-key-alias myalias \
             "$APK_PATH"
           
-          # تغییر نام فایل به app-release-signed.apk در همان پوشه خروجی
           NEW_APK_PATH=$(dirname "$APK_PATH")/app-release-signed.apk
           mv "$APK_PATH" "$NEW_APK_PATH"
           
-          # ذخیره مسیر کامل و مطلق در متغیر محیطی برای مرحله بعد
           echo "SIGNED_APK_PATH=$(pwd)/$NEW_APK_PATH" >> "$GITHUB_ENV"
           echo "✅ فایل APK با موفقیت امضا شد: $NEW_APK_PATH"
 
@@ -127,5 +127,5 @@ jobs:
       - name: Upload Signed APK
         uses: actions/upload-artifact@v4
         with:
-          name: CoolerController-Signed-APK
+          name: CoolerController-Android4-Legacy-APK
           path: ${{ env.SIGNED_APK_PATH }}
