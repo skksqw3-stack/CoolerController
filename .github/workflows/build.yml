@@ -17,7 +17,8 @@ jobs:
         run: |
           set -e
           # ⬇️ نام دقیق فایل زیپ جدید شما (به فاصله و پرانتز دقت کنید) ⬇️
-          ZIP_FILE="CoolerController_API19_fixed (1).zip"
+          ZIP_FILE="CoolerController_API19_fixed.zip"
+
           
           if [ ! -f "$ZIP_FILE" ]; then 
             echo "❌ فایل پیدا نشد: $ZIP_FILE"
