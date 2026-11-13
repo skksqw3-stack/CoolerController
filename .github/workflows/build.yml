@@ -42,7 +42,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          # ⬇️ بازگشت به جاوا 17 (اجباری برای گرِدل‌های جدید) ⬇️
+          # جاوا 17 برای سازگاری با گرِدل 8.7
           java-version: '17' 
 
       - name: Cache Gradle
@@ -55,13 +55,28 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      # 🌟 مرحله Setup Gradle Wrapper حذف شد تا از گرِدلِ خود پروژه استفاده شود 🌟
+      - name: Setup Gradle Wrapper
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          set -e
+          echo "📦 در حال ساخت gradlew با نسخه 8.7 ..."
+          gradle wrapper --gradle-version 8.7
+          
+          # بررسی وجود فایل gradlew و دادن دسترسی اجرا
+          if [ -f "gradlew" ]; then
+            chmod +x gradlew
+            echo "✅ فایل gradlew با موفقیت ساخته و آماده شد."
+          else
+            echo "❌ فایل gradlew ساخته نشد! بررسی کنید که پوشه پروژه درست انتخاب شده باشد."
+            ls -la
+            exit 1
+          fi
 
       - name: Build Unsigned APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           set -e
-          chmod +x gradlew
+          echo "🏗️ شروع بیلد پروژه..."
           ./gradlew assembleRelease
 
       - name: Find apksigner
