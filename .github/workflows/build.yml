@@ -16,14 +16,17 @@ jobs:
       - name: Extract Zip File
         run: |
           set -e
-          # ⬇️ نام فایل دقیقاً مطابق با فایل آپلود شده جدید شما تنظیم شد ⬇️
-          ZIP_FILE="CoolerController_Android_4_4_4.zip"
           
-          if [ ! -f "$ZIP_FILE" ]; then 
-            echo "❌ فایل پیدا نشد: $ZIP_FILE"
+          # پیدا کردن اولین فایل زیپ در پوشه اصلی (به جای نوشتن نام دقیق)
+          ZIP_FILE=$(find . -maxdepth 1 -name "*.zip" -type f | head -n 1)
+          
+          if [ -z "$ZIP_FILE" ]; then 
+            echo "❌ هیچ فایل زیپی در روت پروژه پیدا نشد!"
             ls -la
             exit 1
           fi
+          
+          echo "✅ فایل زیپ پیدا شد: $ZIP_FILE"
           
           mkdir -p extracted
           unzip -q -o "$ZIP_FILE" -d extracted
@@ -37,36 +40,10 @@ jobs:
           echo "✅ پروژه در مسیر $PROJECT_DIR پیدا شد"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-      - name: Copy Icon to Project
-        run: |
-          set -e
-          ICON_FILE="icon.png"
-          if [ -f "$ICON_FILE" ]; then
-            echo "✅ آیکون پیدا شد: $ICON_FILE"
-            RES_DIR=$(find ${{ env.PROJECT_DIR }} -path "*/src/main/res" -type d | head -n 1)
-            if [ -z "$RES_DIR" ]; then 
-              echo "❌ پوشه res پیدا نشد!"; exit 1
-            fi
-            
-            # کپی آیکون در تمام پوشه‌های mipmap
-            for folder in $RES_DIR/mipmap-*; do
-              if [ -d "$folder" ]; then
-                cp "$ICON_FILE" "$folder/ic_launcher.png"
-                # حذف تمام فایل‌های xml که ممکن است جایگزین png شوند (برای اعمال قطعی آیکون)
-                find "$folder" -name "ic_launcher*.xml" -type f -delete
-              fi
-            done
-            echo "✅ آیکون در تمام پوشه‌های mipmap کپی شد و فایل‌های xml مزاحم حذف شدند."
-          else
-            echo "⚠️ آیکون پیدا نشد. از آیکون پیش‌فرض استفاده می‌شود."
-          fi
-
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          # برای پروژه‌های قدیمی‌تر بهتر است از جاوا 11 یا 8 استفاده شود، 
-          # اما اگر پروژه با 17 بیلد می‌شود، همین 17 را نگه می‌داریم.
           java-version: '17' 
 
       - name: Cache Gradle
@@ -150,5 +127,5 @@ jobs:
       - name: Upload Signed APK
         uses: actions/upload-artifact@v4
         with:
-          name: CoolerController-Android4-Signed-APK
+          name: CoolerController-Signed-APK
           path: ${{ env.SIGNED_APK_PATH }}
