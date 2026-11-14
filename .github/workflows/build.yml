@@ -16,7 +16,7 @@ jobs:
       - name: Extract Zip File
         run: |
           set -e
-          #  نام دقیق فایل زیپ جدید شما (به فاصله و پرانتز دقت کنید) ⬇️
+          #  نام دقیق فایل زیپ جدید شما (به فاصله و پرانتز دقت کنید) 
           ZIP_FILE="CoolerControl_Kotlin_Updated.zip"
 
           
