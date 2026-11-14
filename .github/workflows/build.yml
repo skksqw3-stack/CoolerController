@@ -17,7 +17,7 @@ jobs:
         run: |
           set -e
           #  نام دقیق فایل زیپ جدید شما (به فاصله و پرانتز دقت کنید) ⬇️
-          ZIP_FILE="CoolerControl_Kotlin.zip"
+          ZIP_FILE="CoolerControl_Kotlin_Updated.zip"
 
           
           if [ ! -f "$ZIP_FILE" ]; then 
